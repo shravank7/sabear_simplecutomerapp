@@ -2,7 +2,7 @@ pipeline {
     agent any
     tools {
         // Note: this should match with the tool name configured in your jenkins instance (JENKINS_URL/configureTools/)
-        maven "MVN_HOME"
+        maven "M2_HOME"
         
     }
 	 environment {
@@ -11,23 +11,23 @@ pipeline {
         // This can be http or https
         NEXUS_PROTOCOL = "http"
         // Where your Nexus is running
-        NEXUS_URL = "18.221.189.193:8081/"
+        NEXUS_URL = "13.218.188.180:8081/"
         // Repository where we will upload the artifact
-        NEXUS_REPOSITORY = "sonarqube"
+        NEXUS_REPOSITORY = "Simplecustomerapp"
         // Jenkins credential id to authenticate to Nexus OSS
-        NEXUS_CREDENTIAL_ID = "nexus_keygen"
-	SCANNER_HOME = tool 'sonar_scanner'
+        NEXUS_CREDENTIAL_ID = "f8aec3dd-80dd-4369-8a7f-7b3971777fe2"
+	SCANNER_HOME = tool '/opt/sonar_scanner'
     }
     stages {
         stage("clone code") {
             steps {
                 script {
                     // Let's clone the source
-                    git 'https://github.com/betawins/sabear_simplecutomerapp.git';
+                    git 'https://github.com/shravank7/sabear_simplecutomerapp.git';
                 }
             }
         }
-        stage("mvn build") {
+        stage("m2 build") {
             steps {
                 script {
                     // If you are using Windows then you should use "bat" step
@@ -68,16 +68,17 @@ pipeline {
                     if(artifactExists) {
                         echo "*** File: ${artifactPath}, group: ${pom.groupId}, packaging: ${pom.packaging}, version ${pom.version}";
                         nexusArtifactUploader(
-                            nexusVersion: NEXUS_VERSION,
-                            protocol: NEXUS_PROTOCOL,
-                            nexusUrl: NEXUS_URL,
-			    groupId: pom.groupId,
-                            version: pom.version,
-                            repository: NEXUS_REPOSITORY,
-                            credentialsId: NEXUS_CREDENTIAL_ID,
+                            nexusVersion: nexus3,
+                            protocol: http,
+                            nexusUrl: 13.218.188.180:8081/,
+			    groupId: com.javatpoint,
+                            version: ${BUILD_NUMBER}-SNAPSHOT,
+                            repository: Simplecustomerapp,
+                            credentialsId: f8aec3dd-80dd-4369-8a7f-7b3971777fe2
+,
                             artifacts: [
                                 // Artifact generated such as .jar, .ear and .war files.
-                                [artifactId: pom.artifactId,
+                                [artifactId: maven-war-plugin,
                                 classifier: '',
                                 file: artifactPath,
                                 type: pom.packaging],
@@ -87,6 +88,78 @@ pipeline {
                                 file: "pom.xml",
                                 type: "pom"]
                             ]
+
+
+
+
+
+							pipeline {
+    agent any
+
+    tools {
+        maven "M2_HOME"
+    }
+
+    environment {
+        SCANNER_HOME = tool 'sonar_scanner'
+    }
+
+    stages {
+
+        stage('Clone Code') {
+            steps {
+                git 'https://github.com/shravank7/sabear_simplecutomerapp.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'mvn clean install'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube_server') {
+
+                    sh """
+                        mkdir -p target/classes
+
+                        ${SCANNER_HOME}/bin/sonar-scanner \
+                        -Dsonar.projectKey=Ncodeit \
+                        -Dsonar.projectName=Ncodeit \
+                        -Dsonar.sources=src \
+                        -Dsonar.java.binaries=target/classes
+                    """
+                }
+            }
+        }
+
+        stage('Upload Artifact to Nexus') {
+            steps {
+
+                nexusArtifactUploader(
+                    nexusVersion: 'nexus3',
+                    protocol: 'http',
+                    nexusUrl: '13.218.188.180:8081',
+                    repository: 'Simplecustomerapp',
+                    credentialsId: 'f8aec3dd-80dd-4369-8a7f-7b3971777fe2',
+                    groupId: 'com.javatpoint',
+                    version: "${BUILD_NUMBER}-SNAPSHOT",
+
+                    artifacts: [
+                        [
+                            artifactId: 'simplecustomerapp',
+                            classifier: '',
+                            file: 'target/SimpleCustomerApp-${BUILD_NUMBER}-SNAPSHOT.war',
+                            type: 'war'
+                        ]
+                    ]
+                )
+            }
+        }
+    }
+}
                         );
                     } else {
                         error "*** File: ${artifactPath}, could not be found";
